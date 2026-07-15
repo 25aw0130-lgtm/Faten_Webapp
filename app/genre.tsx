@@ -35,6 +35,16 @@ export default function GenreScreen() {
     });
   };
 
+  // NEW: lets the user skip genre selection entirely. No `genre` param
+  // is passed at all, and the backend already treats a missing genre
+  // as "no genre filter" (see /recommend: `genre ? filter(...) : allBooks`).
+  const handleSkip = () => {
+    router.push({
+      pathname: "/diagnosis",
+      params: {},
+    });
+  };
+
   return (
     <LinearGradient
       colors={["#07091A", "#0D1028", "#141B3D", "#1A1230", "#07091A"]}
@@ -125,6 +135,16 @@ export default function GenreScreen() {
           >
             次へ ✦
           </Text>
+        </TouchableOpacity>
+
+        {/* NEW: skip button — lets the user proceed without choosing a genre */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.skipButton}
+          onPress={handleSkip}
+        >
+          <Ionicons name="sparkles-outline" size={15} color="#F0C177" />
+          <Text style={styles.skipButtonText}>どのジャンルでもいい</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -314,5 +334,30 @@ const styles = StyleSheet.create({
 
   nextButtonTextDisabled: {
     color: "#8E86A3",
+  },
+
+  // NEW: styles for the skip button — pill outline matching the app's
+  // gold/purple theme, so it reads as a real secondary action rather
+  // than a plain text link
+  skipButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(240,193,119,0.4)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+
+  skipButtonText: {
+    color: "#F0C177",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
 });
