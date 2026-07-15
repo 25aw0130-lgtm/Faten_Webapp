@@ -12,6 +12,10 @@ import {
 
 type ResultType = "healing" | "reflection" | "hope" | "adventure" | "change";
 
+// CHANGE 1: each of the 5 types now appears in exactly 4 of the 5
+// questions (previously healing/reflection appeared in all 5 questions
+// while hope only appeared in 3), so no type has a scoring advantage
+// just from how the quiz is structured.
 const questions: {
   text: string;
   choices: string[];
@@ -35,7 +39,7 @@ const questions: {
         "人の笑い声や話し声",
         "静けさそのもの",
       ],
-      types: ["adventure", "healing", "hope", "reflection"],
+      types: ["adventure", "healing", "change", "reflection"],
     },
     {
       text: "今、触れていたいと思う感覚はどれ？",
@@ -45,7 +49,7 @@ const questions: {
         "風が抜けるような軽さ",
         "重みのある安心感",
       ],
-      types: ["healing", "change", "adventure", "reflection"],
+      types: ["healing", "change", "hope", "reflection"],
     },
     {
       text: "疲れた日に、自然と手が伸びる味はどれ？",
@@ -55,7 +59,7 @@ const questions: {
         "ハーブや炭酸のような爽やかさ",
         "コーヒーやビターな苦味",
       ],
-      types: ["change", "healing", "hope", "reflection"],
+      types: ["adventure", "healing", "hope", "change"],
     },
     {
       text: "思わず深呼吸したくなる香りはどれ？",
@@ -65,7 +69,7 @@ const questions: {
         "草や森の香り",
         "本屋や喫茶店の香り",
       ],
-      types: ["adventure", "change", "healing", "reflection"],
+      types: ["adventure", "change", "hope", "reflection"],
     },
   ];
 
@@ -151,7 +155,7 @@ export default function DiagnosisScreen() {
     return () => loop.stop();
   }, [selected]);
 
-  // ---- logic: kept exactly from my own code ----
+  // ---- logic: kept exactly from my own code, EXCEPT the tie-break fix ----
   const calculateResult = (finalAnswers: number[]) => {
     const score: Record<ResultType, number> = {
       healing: 0,
@@ -169,7 +173,15 @@ export default function DiagnosisScreen() {
       score[type] += 1;
     });
 
-    const resultType = Object.entries(score).sort((a, b) => b[1] - a[1])[0][0];
+    // CHANGE 2: ties used to always resolve to "healing" because
+    // Object.entries().sort() is stable and "healing" was listed first
+    // in the score object. Now every type tied for the highest score is
+    // collected, and the result is picked randomly among them.
+    const maxScore = Math.max(...Object.values(score));
+    const topTypes = Object.entries(score)
+      .filter(([, val]) => val === maxScore)
+      .map(([type]) => type as ResultType);
+    const resultType = topTypes[Math.floor(Math.random() * topTypes.length)];
 
     console.log("answers:", finalAnswers);
     console.log("score:", score);

@@ -273,11 +273,15 @@ async function fetchBooksByAuthor(author, genreTerm = "", retries = 2) {
 // Fetch sequentially with a small gap between requests to avoid
 // bursting Google Books' per-second rate limit (was previously
 // Promise.all, which fired all requests at once and triggered 429s).
-async function fetchAllBooks(authors, genreTerm = "", gapMs = 300) {
+// CHANGE 4: accepts {author, originGenre} entries instead of plain author
+// strings, and tags each returned book with the genre pool it came from —
+// needed so the "no genre selected" path can force genre diversity in the
+// final picks instead of relying on embedding score alone (see below).
+async function fetchAllBooks(authorEntries, genreTerm = "", gapMs = 300) {
   const allResults = [];
-  for (const author of authors) {
+  for (const { author, originGenre } of authorEntries) {
     const books = await fetchBooksByAuthor(author, genreTerm);
-    allResults.push(books);
+    allResults.push(books.map((b) => ({ ...b, originGenre })));
     await delay(gapMs);
   }
   return allResults;
@@ -299,7 +303,28 @@ app.post("/recommend", async (req, res) => {
       return res.status(400).json({ error: "moodType and cardKey are required" });
     }
 
-    const authors = genreAuthors[genre] || moodAuthors[moodType] || moodAuthors.healing;
+    // CHANGE 3: when no genre is selected, moodAuthors alone is NOT a
+    // "mixed genre" pool — every list in moodAuthors (healing, reflection,
+    // hope, adventure, change) is made up entirely of novelists. So the
+    // old fallback `genreAuthors[genre] || moodAuthors[moodType]` always
+    // searched novelists only, just picked by mood instead of by genre,
+    // which is why "no genre" was returning ~90% novels. To genuinely mix
+    // genres, pull a handful of authors from EVERY genre pool (including
+    // the mood-matched novelists) when no genre was chosen, tagging each
+    // with the genre pool it came from (used by CHANGE 4 below).
+    let authorEntries;
+    if (genre) {
+      const authorList = genreAuthors[genre] || moodAuthors[moodType] || moodAuthors.healing;
+      authorEntries = authorList.map((author) => ({ author, originGenre: genre }));
+    } else {
+      const novelPool = moodAuthors[moodType] || moodAuthors.healing;
+      authorEntries = [
+        ...novelPool.slice(0, 3).map((author) => ({ author, originGenre: "novel" })),
+        ...Object.entries(genreAuthors).flatMap(([g, pool]) =>
+          pool.slice(0, 3).map((author) => ({ author, originGenre: g }))
+        ),
+      ];
+    }
 
     // Use the first, most representative genre keyword as an actual
     // search term against Google Books (e.g. "小説" for novel), so
@@ -308,7 +333,7 @@ app.post("/recommend", async (req, res) => {
     const genreTerm = GENRE_KEYWORDS[genre]?.[0] || "";
 
     // Fetch books from all authors, throttled to avoid 429s
-    const results = await fetchAllBooks(authors, genreTerm);
+    const results = await fetchAllBooks(authorEntries, genreTerm);
 
     // Flatten and deduplicate. Google Books often returns the same work
     // twice under near-identical titles (e.g. a base title plus a
@@ -329,7 +354,7 @@ app.post("/recommend", async (req, res) => {
             new Set([...(existing.categories || []), ...(book.categories || [])])
           );
         } else {
-          bookMap.set(key, book);
+          bookMap.set(key, book); // book already carries originGenre from fetchAllBooks
           bookOrder.push(key);
         }
       }
@@ -391,15 +416,68 @@ app.post("/recommend", async (req, res) => {
       };
     });
 
-    // Sort by score descending and take top 4 (log scores before stripping them)
-    const sortedTop4 = scored.sort((a, b) => b.score - a.score).slice(0, 4);
+    // CHANGE 5: when a genre WAS selected, keep the previous behavior —
+    // rank purely by embedding score, take a top-8 pool, shuffle, pick 4.
+    //
+    // When NO genre was selected, pure score ranking doesn't actually
+    // produce a mixed result: moodDescriptions is written in narrative,
+    // story-like language ("...温かい物語。..."), so cosine similarity
+    // naturally scores actual novels higher than essay/history/philosophy
+    // books almost every time, regardless of how mixed the author pool
+    // is. So instead, force diversity directly: take the single
+    // best-scoring book from EACH genre pool present (novel, essay,
+    // selfhelp, history, philosophy, art), shuffle those representatives,
+    // and take 4 of them. This guarantees the result actually spans
+    // multiple genres instead of being dominated by whichever genre
+    // scores best on the narrative-flavored query.
+    let sortedTop4;
+    if (genre) {
+      const sortedPool = scored.sort((a, b) => b.score - a.score).slice(0, 8);
+      for (let i = sortedPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [sortedPool[i], sortedPool[j]] = [sortedPool[j], sortedPool[i]];
+      }
+      sortedTop4 = sortedPool.slice(0, 4);
+    } else {
+      const bestPerGenre = new Map();
+      for (const book of scored) {
+        const g = book.originGenre || "novel";
+        if (!bestPerGenre.has(g) || book.score > bestPerGenre.get(g).score) {
+          bestPerGenre.set(g, book);
+        }
+      }
+      let reps = Array.from(bestPerGenre.values());
+
+      // Fisher-Yates shuffle
+      for (let i = reps.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [reps[i], reps[j]] = [reps[j], reps[i]];
+      }
+
+      if (reps.length >= 4) {
+        sortedTop4 = reps.slice(0, 4);
+      } else {
+        // Fewer than 4 distinct genres returned usable books — fill the
+        // rest from the next-best remaining books overall.
+        const chosenTitles = new Set(reps.map((b) => b.title));
+        const remainingPool = scored
+          .filter((b) => !chosenTitles.has(b.title))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 8);
+        for (let i = remainingPool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [remainingPool[i], remainingPool[j]] = [remainingPool[j], remainingPool[i]];
+        }
+        sortedTop4 = [...reps, ...remainingPool].slice(0, 4);
+      }
+    }
 
     console.log(
       "Top 4 books:",
       sortedTop4.map((b) => `${b.title} (${b.score?.toFixed(3)})`)
     );
 
-    const top4 = sortedTop4.map(({ score, categories, ...book }) => book);
+    const top4 = sortedTop4.map(({ score, categories, originGenre, ...book }) => book);
 
     res.json({ books: top4 });
   } catch (err) {
