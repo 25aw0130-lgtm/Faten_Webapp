@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "builds": [{ "src": "embed.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "embed.js" }]
+}
