@@ -26,10 +26,11 @@ const backendHost =
   Platform.OS === "web"
     ? typeof window !== "undefined"
       ? window.location.hostname
-      : "localhost"
-    : Constants.expoConfig?.hostUri?.split(":")[0] || "localhost";
+      : "HNINnoMacBook-Pro.local"
+    : Constants.expoConfig?.hostUri?.split(":")[0] || "HNINnoMacBook-Pro.local";
 
 const BACKEND_URL = `http://${backendHost}:3001`;
+console.log('BACKEND_URL is:', BACKEND_URL);
 
 type Book = {
   title: string;

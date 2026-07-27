@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Faten_Webapp",
+    "name": "Faten",
     "slug": "Faten_Webapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hninyuyu.Faten-Webapp",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.hninyuyu.FatenWebapp"
     },
     "web": {
       "output": "static",
