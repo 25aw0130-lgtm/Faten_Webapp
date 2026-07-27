@@ -46,12 +46,6 @@ export default function GenreScreen() {
     });
   };
 
-<<<<<<< HEAD
-=======
-  // NEW: lets the user skip genre selection entirely. No `genre` param
-  // is passed at all, and the backend already treats a missing genre
-  // as "no genre filter" (see /recommend: `genre ? filter(...) : allBooks`).
->>>>>>> 714466ee82507e4ab7fe8ecb68fb6e3cb08bb33b
   const handleSkip = () => {
     router.push({
       pathname: "/diagnosis",
@@ -167,10 +161,6 @@ export default function GenreScreen() {
           </Text>
         </TouchableOpacity>
 
-<<<<<<< HEAD
-=======
-        {/* NEW: skip button — lets the user proceed without choosing a genre */}
->>>>>>> 714466ee82507e4ab7fe8ecb68fb6e3cb08bb33b
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.skipButton}
@@ -385,24 +375,13 @@ const styles = StyleSheet.create({
     color: "#8E86A3",
   },
 
-<<<<<<< HEAD
-=======
-  // NEW: styles for the skip button — pill outline matching the app's
-  // gold/purple theme, so it reads as a real secondary action rather
-  // than a plain text link
->>>>>>> 714466ee82507e4ab7fe8ecb68fb6e3cb08bb33b
   skipButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-<<<<<<< HEAD
     marginTop: 12,
     paddingVertical: 10,
-=======
-    marginTop: 16,
-    paddingVertical: 12,
->>>>>>> 714466ee82507e4ab7fe8ecb68fb6e3cb08bb33b
     paddingHorizontal: 20,
     borderRadius: 999,
     borderWidth: 1,
@@ -412,11 +391,7 @@ const styles = StyleSheet.create({
 
   skipButtonText: {
     color: "#F0C177",
-<<<<<<< HEAD
     fontSize: 13,
-=======
-    fontSize: 14,
->>>>>>> 714466ee82507e4ab7fe8ecb68fb6e3cb08bb33b
     fontWeight: "600",
     textAlign: "center",
     letterSpacing: 0.5,
