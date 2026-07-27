@@ -22,6 +22,17 @@ const GENRES: {
   { key: "art", label: "芸術", icon: "color-palette-outline" },
 ];
 
+// CHANGE: split into rows of 2 up front, so the grid can be laid out as
+// 3 flex rows (see styles.gridContainer / styles.row) instead of a single
+// flex-wrap block with fixed-height cards. Flex rows grow/shrink to fill
+// whatever vertical space is actually available, so the whole screen
+// (header + grid + buttons) always fits without scrolling, on any device.
+const GENRE_ROWS = [
+  [GENRES[0], GENRES[1]],
+  [GENRES[2], GENRES[3]],
+  [GENRES[4], GENRES[5]],
+];
+
 export default function GenreScreen() {
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -35,9 +46,6 @@ export default function GenreScreen() {
     });
   };
 
-  // NEW: lets the user skip genre selection entirely. No `genre` param
-  // is passed at all, and the backend already treats a missing genre
-  // as "no genre filter" (see /recommend: `genre ? filter(...) : allBooks`).
   const handleSkip = () => {
     router.push({
       pathname: "/diagnosis",
@@ -92,26 +100,42 @@ export default function GenreScreen() {
         <View style={styles.line} />
       </View>
 
-      <View style={styles.grid}>
-        {GENRES.map((genre) => {
-          const isSelected = selected === genre.key;
-          return (
-            <TouchableOpacity
-              key={genre.key}
-              activeOpacity={0.85}
-              style={[styles.genreCard, isSelected && styles.selectedCard]}
-              onPress={() => setSelected(genre.key)}
-            >
-              {isSelected && <Text style={styles.check}>✓</Text>}
-              <Ionicons
-                name={genre.icon}
-                size={30}
-                color={isSelected ? "#FFF5DA" : "#F0C177"}
-              />
-              <Text style={styles.genreLabel}>{genre.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* CHANGE: flex:1 container so this section always expands or
+          shrinks to exactly fill the remaining space between the header
+          above and the buttons below — no fixed pixel heights, so it
+          never overflows into or gets overlapped by anything, and never
+          needs to scroll.
+          CHANGE (spacing pass): added an explicit `gap` here. The rows
+          are flex:1 so they already fill 100% of this container's height
+          between them — `justifyContent: "space-between"` alone had no
+          leftover space to distribute, so there was effectively zero gap
+          between rows. `gap` reserves real space up front and shrinks
+          each row to fit around it, which is what actually pushes the
+          rows apart. */}
+      <View style={styles.gridContainer}>
+        {GENRE_ROWS.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.row}>
+            {row.map((genre) => {
+              const isSelected = selected === genre.key;
+              return (
+                <TouchableOpacity
+                  key={genre.key}
+                  activeOpacity={0.85}
+                  style={[styles.genreCard, isSelected && styles.selectedCard]}
+                  onPress={() => setSelected(genre.key)}
+                >
+                  {isSelected && <Text style={styles.check}>✓</Text>}
+                  <Ionicons
+                    name={genre.icon}
+                    size={28}
+                    color={isSelected ? "#FFF5DA" : "#F0C177"}
+                  />
+                  <Text style={styles.genreLabel}>{genre.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       <View style={styles.bottom}>
@@ -137,7 +161,6 @@ export default function GenreScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* NEW: skip button — lets the user proceed without choosing a genre */}
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.skipButton}
@@ -157,6 +180,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#07091A",
     paddingHorizontal: 28,
     paddingTop: 60,
+    paddingBottom: 24,
   },
 
   starLayer: {
@@ -170,7 +194,7 @@ const styles = StyleSheet.create({
   topArea: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 20,
   },
 
   backIcon: {
@@ -201,21 +225,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     letterSpacing: 1,
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   subtitle: {
     color: "rgba(255,255,255,0.65)",
     textAlign: "center",
     fontSize: 13,
-    marginBottom: 24,
+    marginBottom: 16,
   },
 
   starLine: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: 16,
     gap: 20,
   },
 
@@ -233,24 +257,39 @@ const styles = StyleSheet.create({
     textShadowRadius: 12,
   },
 
-  grid: {
+  // CHANGE: flex-based grid — fills all remaining vertical space, split
+  // evenly into 3 rows, each split evenly into 2 cards. No fixed heights
+  // anywhere, so this scales to fit any screen automatically.
+  // CHANGE (spacing pass): `gap: 16` adds real vertical breathing room
+  // between the 3 rows (see note above on why space-between wasn't
+  // doing this).
+  gridContainer: {
+    flex: 1,
+    gap: 16,
+  },
+
+  row: {
+    flex: 1,
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 22,
+    // CHANGE (spacing pass): 14 -> 18 for more horizontal breathing room
+    // between the two cards in a row.
+    gap: 18,
   },
 
   genreCard: {
-    width: "46%",
-    height: 130,
+    flex: 1,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#77728D",
     justifyContent: "center",
     alignItems: "center",
-    padding: 12,
+    // CHANGE (spacing pass): 8 -> 16 so the icon/label aren't pressed up
+    // against the card edges.
+    padding: 16,
     backgroundColor: "#11122500",
-    gap: 8,
+    // CHANGE (spacing pass): 6 -> 10 for more room between icon and label.
+    gap: 10,
   },
 
   selectedCard: {
@@ -281,22 +320,22 @@ const styles = StyleSheet.create({
 
   genreLabel: {
     color: "white",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
   },
 
+  // CHANGE: fixed-size footer block (not flex, not absolute) — sits
+  // right after the flexible grid, so total height = header + grid +
+  // this footer always equals exactly the screen height.
   bottom: {
-    position: "absolute",
-    bottom: 70,
-    left: 28,
-    right: 28,
+    marginTop: 16,
     alignItems: "center",
   },
 
   nextButton: {
     width: "100%",
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 30,
     backgroundColor: "#2D1F4A",
     borderWidth: 1.5,
@@ -321,7 +360,7 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: "#E8DFFF",
     textAlign: "center",
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "bold",
     letterSpacing: 1.5,
   },
@@ -336,16 +375,13 @@ const styles = StyleSheet.create({
     color: "#8E86A3",
   },
 
-  // NEW: styles for the skip button — pill outline matching the app's
-  // gold/purple theme, so it reads as a real secondary action rather
-  // than a plain text link
   skipButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 16,
-    paddingVertical: 12,
+    marginTop: 12,
+    paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 999,
     borderWidth: 1,
@@ -355,7 +391,7 @@ const styles = StyleSheet.create({
 
   skipButtonText: {
     color: "#F0C177",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
     letterSpacing: 0.5,

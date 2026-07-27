@@ -46,6 +46,38 @@ const openAmazon = (url: string | null) => {
   );
 };
 
+// CHANGE: the top preview and the あらすじ section both used to render
+// the exact same mainBook.description, so the same paragraph appeared
+// twice on screen. The backend only sends one description field, so
+// there's no separate "teaser" text to pull from — this pulls just the
+// first sentence (up to the first 。) as the teaser. A fixed character
+// count wasn't reliable: some descriptions are short enough that the
+// cutoff never actually kicked in, so the "teaser" ended up identical
+// to the full text. Cutting at the first sentence boundary guarantees
+// it's shorter than the full あらすじ whenever there's more than one
+// sentence, and still reads naturally instead of stopping mid-word.
+const TEASER_MAX_LENGTH = 50;
+
+const makeTeaser = (text: string) => {
+  if (!text) return "";
+  const firstSentenceEnd = text.indexOf("。");
+  let teaser =
+    firstSentenceEnd !== -1 ? text.slice(0, firstSentenceEnd + 1) : text;
+
+  if (teaser.length > TEASER_MAX_LENGTH) {
+    teaser = `${teaser.slice(0, TEASER_MAX_LENGTH).trim()}…`;
+  }
+
+  // If the first sentence is the whole description (no more text after
+  // it), there's nothing left to differentiate — fall back to a hard
+  // truncation so the teaser is still visibly shorter.
+  if (teaser === text.trim() && text.length > TEASER_MAX_LENGTH) {
+    teaser = `${text.slice(0, TEASER_MAX_LENGTH).trim()}…`;
+  }
+
+  return teaser;
+};
+
 const cardMap: { [key: string]: string } = {
   星: "STAR",
   太陽: "SUN",
@@ -263,11 +295,12 @@ export default function BookResultScreen() {
                 <Text style={styles.bookTitle}>{mainBook.title}</Text>
                 <Text style={styles.author}>著者：{mainBook.author}</Text>
 
-                <ScrollView style={styles.previewScroll} nestedScrollEnabled>
-                  <Text style={styles.description}>
-                    {mainBook.description}
-                  </Text>
-                </ScrollView>
+                {/* CHANGE: teaser text (short lead-in), not the full
+                    description — the full text now lives only under
+                    あらすじ below, so nothing is duplicated. */}
+                <Text style={styles.description}>
+                  {makeTeaser(mainBook.description)}
+                </Text>
 
                 <View style={styles.textBox}>
                   <Text style={styles.sectionTitle}>なぜこの本？</Text>
@@ -648,11 +681,6 @@ const styles = StyleSheet.create({
 
   synopsisScroll: {
     maxHeight: 160,
-  },
-
-  previewScroll: {
-    maxHeight: 100,
-    marginBottom: 22,
   },
 
   likeButton: {
